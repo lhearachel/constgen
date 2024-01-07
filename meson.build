@@ -12,3 +12,4 @@ subdir('constgen')
 constgen_dep = declare_dependency()
 
 meson.override_dependency('constgen', constgen_dep)
+meson.override_find_program('constgen_py', constgen_py)
