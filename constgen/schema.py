@@ -9,7 +9,7 @@ _DEFINITIONS = 'definitions'
 _TARGETS = 'targets'
 
 
-Definition = namedtuple('Definition', ['key', 'type', 'prefix', 'values'])
+Definition = namedtuple('Definition', ['key', 'type', 'values'])
 Target = namedtuple('Target', ['path', 'def_keys'])
 
 
@@ -37,7 +37,6 @@ class Schema():
         self.definitions = { 
             def_key: Definition(def_key,
                                 ConstType[def_obj['type'].upper()],
-                                def_obj['prefix'],
                                 def_obj['values'])
             for def_key, def_obj in defs.items()
         }

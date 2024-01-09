@@ -44,27 +44,25 @@ These constants can be defined instead using the following simple JSON manifest:
     "definitions": {
         "@Color": {
             "type": "enum",
-            "prefix": "COLOR",
             "values": [
-                "RED",
-                "ORANGE",
-                "YELLOW",
-                "GREEN",
-                "BLUE",
-                "INDIGO",
-                "VIOLET"
+                "COLOR_RED",
+                "COLOR_ORANGE",
+                "COLOR_YELLOW",
+                "COLOR_GREEN",
+                "COLOR_BLUE",
+                "COLOR_INDIGO",
+                "COLOR_VIOLET"
             ]
         },
         "@Pet": {
             "type": "enum",
-            "prefix": "PET",
             "values": [
-                "DOG",
-                "CAT",
-                "FISH",
-                "LIZARD",
-                "SNAKE",
-                "SPIDER"
+                "PET_DOG",
+                "PET_CAT",
+                "PET_FISH",
+                "PET_LIZARD",
+                "PET_SNAKE",
+                "PET_SPIDER"
             ]
         }
     }

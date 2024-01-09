@@ -37,7 +37,7 @@ def c_footer(target: Path) -> str:
 
 
 def c_content(defn: Definition) -> str:
-    vals = [f'    {defn.prefix}_{v} = {i},' for i, v in enumerate(defn.values)]
+    vals = [f'    {v} = {i},' for i, v in enumerate(defn.values)]
     return '\n'.join([
         f'enum {defn.key[1:]} {{',
         *vals,
@@ -62,7 +62,7 @@ def asm_footer(target: Path) -> str:
 
 
 def asm_content(defn: Definition) -> str:
-    vals = [f'    .equ {defn.prefix}_{v} {i}' for i, v in enumerate(defn.values)]
+    vals = [f'    .equ {v} {i}' for i, v in enumerate(defn.values)]
     return '\n'.join([*vals, ''])
 
 
@@ -81,11 +81,11 @@ def py_footer(target: Path) -> str:
 
 
 def py_content(defn: Definition) -> str:
-    vals = [f'    {defn.prefix}_{v} = {i}' for i, v in enumerate(defn.values)]
+    vals = [f'    {v} = {i}' for i, v in enumerate(defn.values)]
     return '\n'.join([
         f'class {defn.key[1:]}(enum.Enum):',
         *vals,
-        '\n'
+        ''
     ])
 
 
