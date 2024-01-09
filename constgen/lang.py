@@ -17,7 +17,7 @@ def _file_guard(target: Path) -> str:
                       str(target).replace('-', ' ')
                )
         ).split()
-    ).upper()
+    ).upper().replace('/', '__').replace('.', '__')
 
 
 def c_header(target: Path, origin_file_name: Path) -> str:
