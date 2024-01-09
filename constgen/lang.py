@@ -1,13 +1,35 @@
 from collections import namedtuple
 from enum import auto, Enum
 from pathlib import Path
+from re import sub as re_sub
 
 from schema import Definition
 
 
-def c_header(target: Path) -> str:
-    incl_guard = str(target).upper().replace('/', '__').replace('.', '_') + '_H'
-    return f'#ifndef {incl_guard}\n#define {incl_guard}\n'
+GENERATED_BANNER = 'THIS FILE WAS GENERATED WITH CONSTGEN; DO NOT MANUALLY MODIFY IT'
+ORIGIN_FILE_BANNER = 'CONSTANTS ORIGIN FILE: {origin_file_name}'
+
+
+def _file_guard(target: Path) -> str:
+    return '_'.join(
+        re_sub('([A-Z][a-z]+)', r' \1',
+               re_sub('([A-Z]+)', r' \1',
+                      str(target).replace('-', ' ')
+               )
+        ).split()
+    ).upper()
+
+
+def c_header(target: Path, origin_file_name: Path) -> str:
+    incl_guard = _file_guard(target) + '_H'
+    return '\n'.join([
+        f'// {GENERATED_BANNER}',
+        f'// {ORIGIN_FILE_BANNER.format(origin_file_name=origin_file_name)}',
+        '',
+        f'#ifndef {incl_guard}',
+        f'#define {incl_guard}',
+        ''
+    ])
 
 
 def c_footer(target: Path) -> str:
@@ -23,9 +45,16 @@ def c_content(defn: Definition) -> str:
     ])
 
 
-def asm_header(target: Path) -> str:
-    incl_guard = 'ASM_' + str(target).upper().replace('/', '__').replace('.', '_') + '_INC'
-    return f'    .ifndef {incl_guard}\n    .set {incl_guard}, 1\n'
+def asm_header(target: Path, origin_file_name: Path) -> str:
+    incl_guard = _file_guard(target) + '_INC'
+    return '\n'.join([
+        f'; {GENERATED_BANNER}',
+        f'; {ORIGIN_FILE_BANNER.format(origin_file_name=origin_file_name)}',
+        '',
+        f'    .ifndef {incl_guard}',
+        f'    .set {incl_guard}, 1',
+        ''
+    ])
 
 
 def asm_footer(target: Path) -> str:
@@ -37,8 +66,14 @@ def asm_content(defn: Definition) -> str:
     return '\n'.join([*vals, ''])
 
 
-def py_header(target: Path) -> str:
-    return 'import enum\n'
+def py_header(target: Path, origin_file_name: Path) -> str:
+    return '\n'.join([
+        f'# {GENERATED_BANNER}',
+        f'# {ORIGIN_FILE_BANNER.format(origin_file_name=origin_file_name)}',
+        '',
+        'import enum',
+        ''
+    ])
 
 
 def py_footer(target: Path) -> str:

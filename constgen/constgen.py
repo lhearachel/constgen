@@ -2,7 +2,7 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
-from dump import dump_from_file
+from dump import dump as dump_from_file
 from lang import Language
 
 def constgen():
