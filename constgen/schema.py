@@ -9,13 +9,19 @@ _DEFINITIONS = 'definitions'
 _TARGETS = 'targets'
 
 
-Definition = namedtuple('Definition', ['key', 'type', 'values'])
+Definition = namedtuple('Definition', ['key', 'type', 'values', 'composites'])
 Target = namedtuple('Target', ['path', 'def_keys'])
 
 
 class ConstType(IntFlag):
     NONE    = 0
     ENUM    = auto()
+    FLAGS   = auto()
+
+
+class CompositionOp(IntFlag):
+    NONE    = 0
+    OR      = auto()
 
 
 def _flatten(d: MutableMapping, parent='', sep='/'):
@@ -37,7 +43,8 @@ class Schema():
         self.definitions = { 
             def_key: Definition(def_key,
                                 ConstType[def_obj['type'].upper()],
-                                def_obj['values'])
+                                def_obj['values'],
+                                def_obj.get('composites', []))
             for def_key, def_obj in defs.items()
         }
         self.targets = { path_key: Target(path_key, def_keys) for path_key, def_keys in _flatten(targets).items() }

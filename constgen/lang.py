@@ -3,11 +3,24 @@ from enum import auto, Enum
 from pathlib import Path
 from re import sub as re_sub
 
-from schema import Definition
+from schema import Definition, ConstType, CompositionOp
 
 
 GENERATED_BANNER = 'THIS FILE WAS GENERATED WITH CONSTGEN; DO NOT MANUALLY MODIFY IT'
 ORIGIN_FILE_BANNER = 'CONSTANTS ORIGIN FILE: {origin_file_name}'
+
+
+class Language(Enum):
+    C       = 0
+    ASM     = auto()
+    PY      = auto()
+
+
+LANG_COMPOSE_OPS = [
+    ['', '|'],
+    ['', ''],
+    ['', '|'],
+]
 
 
 def _file_guard(target: Path) -> str:
@@ -18,6 +31,15 @@ def _file_guard(target: Path) -> str:
                )
         ).split()
     ).upper().replace('/', '__').replace('.', '__')
+
+
+def _compose(components: list[str], op: str, lang: Language) -> str:
+    match CompositionOp[op.upper()]:
+        case CompositionOp.OR:
+            return LANG_COMPOSE_OPS[lang.value][CompositionOp.OR.value].join(components)
+    
+        case _:
+            raise ValueError
 
 
 def c_header(target: Path, origin_file_name: Path) -> str:
@@ -37,12 +59,30 @@ def c_footer(target: Path) -> str:
 
 
 def c_content(defn: Definition) -> str:
-    vals = [f'    {v} = {i},' for i, v in enumerate(defn.values)]
-    return '\n'.join([
-        f'enum {defn.key[1:]} {{',
-        *vals,
-        '};\n'
-    ])
+    match defn.type:
+        case ConstType.ENUM:
+            # Enums do not support composite values
+            vals = [f'    {v} = {i},' for i, v in enumerate(defn.values)]
+            return '\n'.join([
+                f'enum {defn.key[1:]} {{',
+                *vals,
+                '};\n'
+            ])
+
+        case ConstType.FLAGS:
+            # The first flag value is always interpreted as 0
+            vals = [f'#define {v} (1 << {i})' for i, v in enumerate(defn.values[1:])]
+            composites = [f'#define {k} ({_compose(v["components"], v["op"], Language.C)})' for k, v in defn.composites.items()]
+
+            return '\n'.join([
+                f'#define {defn.values[0]} 0',
+                *vals,
+                *composites,
+                ''
+            ])
+    
+        case _:
+            raise ValueError
 
 
 def asm_header(target: Path, origin_file_name: Path) -> str:
@@ -62,8 +102,13 @@ def asm_footer(target: Path) -> str:
 
 
 def asm_content(defn: Definition) -> str:
-    vals = [f'    .equ {v} {i}' for i, v in enumerate(defn.values)]
-    return '\n'.join([*vals, ''])
+    match defn.type:
+        case ConstType.ENUM:
+            vals = [f'    .equ {v} {i}' for i, v in enumerate(defn.values)]
+            return '\n'.join([*vals, ''])
+
+        case _:
+            raise NotImplementedError # ASM does not have support for composite bitflags
 
 
 def py_header(target: Path, origin_file_name: Path) -> str:
@@ -81,18 +126,28 @@ def py_footer(target: Path) -> str:
 
 
 def py_content(defn: Definition) -> str:
-    vals = [f'    {v} = {i}' for i, v in enumerate(defn.values)]
-    return '\n'.join([
-        f'class {defn.key[1:]}(enum.Enum):',
-        *vals,
-        ''
-    ])
+    match defn.type:
+        case ConstType.ENUM:
+            vals = [f'    {v} = {i}' for i, v in enumerate(defn.values)]
+            return '\n'.join([
+                f'class {defn.key[1:]}(enum.Enum):',
+                *vals,
+                ''
+            ])
 
-
-class Language(Enum):
-    C       = 0
-    ASM     = auto()
-    PY      = auto()
+        case ConstType.FLAGS:
+            vals = [f'    {v} = enum.auto()' for v in defn.values[1:]]
+            composites = [f'    {k} = {_compose(v["components"], v["op"], Language.PY)}' for k, v in defn.composites.items()]
+            return '\n'.join([
+                f'class {defn.key[1:]}(enum.IntFlag):',
+                f'    {defn.values[0]} = 0',
+                *vals,
+                *composites,
+                ''
+            ])
+        
+        case _:
+            raise ValueError
 
 
 FuncSet = namedtuple('FuncSet', ['header', 'footer', 'content'])
