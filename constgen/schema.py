@@ -9,7 +9,7 @@ _DEFINITIONS = 'definitions'
 _TARGETS = 'targets'
 
 
-Definition = namedtuple('Definition', ['key', 'type', 'values', 'composites'])
+Definition = namedtuple('Definition', ['key', 'type', 'values', 'composites', 'as_preproc'])
 Target = namedtuple('Target', ['path', 'def_keys'])
 
 
@@ -44,7 +44,8 @@ class Schema():
             def_key: Definition(def_key,
                                 ConstType[def_obj['type'].upper()],
                                 def_obj['values'],
-                                def_obj.get('composites', []))
+                                def_obj.get('composites', []),
+                                def_obj.get('as_preproc', False))
             for def_key, def_obj in defs.items()
         }
         self.targets = { path_key: Target(path_key, def_keys) for path_key, def_keys in _flatten(targets).items() }

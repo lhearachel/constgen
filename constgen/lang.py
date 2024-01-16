@@ -62,12 +62,20 @@ def c_content(defn: Definition) -> str:
     match defn.type:
         case ConstType.ENUM:
             # Enums do not support composite values
-            vals = [f'    {v} = {i},' for i, v in enumerate(defn.values)]
-            return '\n'.join([
-                f'enum {defn.key[1:]} {{',
-                *vals,
-                '};\n'
-            ])
+            # C enums support a preprocessor definition style
+            if defn.as_preproc:
+                vals = [f'#define {v} {i}' for i, v in enumerate(defn.values)]
+                return '\n'.join([
+                    *vals,
+                    ''
+                ])
+            else:
+                vals = [f'    {v} = {i},' for i, v in enumerate(defn.values)]
+                return '\n'.join([
+                    f'enum {defn.key[1:]} {{',
+                    *vals,
+                    '};\n'
+                ])
 
         case ConstType.FLAGS:
             # The first flag value is always interpreted as 0
