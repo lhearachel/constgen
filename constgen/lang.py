@@ -112,11 +112,23 @@ def asm_footer(target: Path) -> str:
 def asm_content(defn: Definition) -> str:
     match defn.type:
         case ConstType.ENUM:
-            vals = [f'    .equ {v} {i}' for i, v in enumerate(defn.values)]
+            vals = [f'    .equ {v}, {i}' for i, v in enumerate(defn.values)]
             return '\n'.join([*vals, ''])
 
+        case ConstType.FLAGS:
+            # The first flag value is always interpreted as 0
+            vals = [f'    .equ {v}, (1 << {i})' for i, v in enumerate(defn.values[1:])]
+            composites = [f'    .equ {k}, ({_compose(v["components"], v["op"], Language.C)})' for k, v in defn.composites.items()]
+
+            return '\n'.join([
+                f'    .equ {defn.values[0]}, 0',
+                *vals,
+                *composites,
+                ''
+            ])
+    
         case _:
-            raise NotImplementedError # ASM does not have support for composite bitflags
+            raise ValueError
 
 
 def py_header(target: Path, origin_file_name: Path) -> str:
