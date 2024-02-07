@@ -17,6 +17,7 @@ class ConstType(IntFlag):
     NONE    = 0
     ENUM    = auto()
     FLAGS   = auto()
+    ALIASES = auto()
 
 
 class CompositionOp(IntFlag):

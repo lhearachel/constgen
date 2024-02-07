@@ -88,6 +88,23 @@ def c_content(defn: Definition) -> str:
                 *composites,
                 ''
             ])
+
+        case ConstType.ALIASES:
+            # Dump literal definitions
+            # Aliases can be dumped either as preprocessor defines or as enum members
+            if defn.as_preproc:
+                vals = [f'#define {k} {v}' for k, v in defn.values.items()]
+                return '\n'.join([
+                    *vals,
+                    ''
+                ])
+            else:
+                vals = [f'    {k} = {v},' for k, v in defn.values.items()]
+                return '\n'.join([
+                    f'enum {defn.key[1:]} {{',
+                    *vals,
+                    '};\n'
+                ])
     
         case _:
             raise ValueError
@@ -124,6 +141,13 @@ def asm_content(defn: Definition) -> str:
                 f'    .equ {defn.values[0]}, 0',
                 *vals,
                 *composites,
+                ''
+            ])
+
+        case ConstType.ALIASES:
+            vals = [f'    .equ {k}, {v}' for k, v in defn.values.items()]
+            return '\n'.join([
+                *vals,
                 ''
             ])
     
@@ -163,6 +187,14 @@ def py_content(defn: Definition) -> str:
                 f'    {defn.values[0]} = 0',
                 *vals,
                 *composites,
+                ''
+            ])
+
+        case ConstType.ALIASES:
+            vals = [f'    {k} = {v}' for k, v in defn.values.items()]
+            return '\n'.join([
+                f'class {defn.key[1:]}(enum.Enum):',
+                *vals,
                 ''
             ])
         
