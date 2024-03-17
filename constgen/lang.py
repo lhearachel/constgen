@@ -1,7 +1,9 @@
 from collections import namedtuple
+from collections.abc import MutableSequence
 from enum import auto, Enum
 from pathlib import Path
 from re import sub as re_sub
+from typing import Optional
 
 from schema import Definition, ConstType, CompositionOp
 
@@ -37,9 +39,34 @@ def _compose(components: list[str], op: str, lang: Language) -> str:
     match CompositionOp[op.upper()]:
         case CompositionOp.OR:
             return LANG_COMPOSE_OPS[lang.value][CompositionOp.OR.value].join(components)
-    
+
         case _:
             raise ValueError
+
+
+def _generate_enum(defn: Definition,
+                   f_str: str,
+                   prefix_line: Optional[str] = None,
+                   suffix_line: Optional[str] = None) -> MutableSequence[str]:
+    start = 0
+    offset = 0
+    vals = []
+
+    if prefix_line:
+        vals.append(prefix_line)
+
+    for v in defn.values:
+        if v in defn.overrides:
+            start = defn.overrides[v]
+            offset = 0
+
+        vals.append(f_str.format(v = v, i = start + offset))
+        offset = offset + 1
+
+    if suffix_line:
+        vals.append(suffix_line)
+
+    return '\n'.join([*vals, ''])
 
 
 def c_header(target: Path, origin_file_name: Path) -> str:
@@ -61,24 +88,19 @@ def c_footer(target: Path) -> str:
 def c_content(defn: Definition) -> str:
     match defn.type:
         case ConstType.ENUM:
-            # Enums do not support composite values
             # C enums support a preprocessor definition style
             if defn.as_preproc:
-                vals = [f'#define {v} {i}' for i, v in enumerate(defn.values)]
-                return '\n'.join([
-                    *vals,
-                    ''
-                ])
+                f_str = '#define {v} {i}'
+                prefix_line = None
+                suffix_line = None
             else:
-                vals = [f'    {v} = {i},' for i, v in enumerate(defn.values)]
-                return '\n'.join([
-                    f'enum {defn.key[1:]} {{',
-                    *vals,
-                    '};\n'
-                ])
+                f_str = '    {v} = {i},'
+                prefix_line = f'enum {defn.key[1:]} {{'
+                suffix_line = '};'
+
+            return _generate_enum(defn, f_str, prefix_line, suffix_line)
 
         case ConstType.FLAGS:
-            # The first flag value is always interpreted as 0
             vals = [f'#define {v} (1 << {i})' for i, v in enumerate(defn.values[1:])]
             composites = [f'#define {k} ({_compose(v["components"], v["op"], Language.C)})' for k, v in defn.composites.items()]
 
@@ -105,7 +127,7 @@ def c_content(defn: Definition) -> str:
                     *vals,
                     '};\n'
                 ])
-    
+
         case _:
             raise ValueError
 
@@ -129,8 +151,8 @@ def asm_footer(target: Path) -> str:
 def asm_content(defn: Definition) -> str:
     match defn.type:
         case ConstType.ENUM:
-            vals = [f'    .equ {v}, {i}' for i, v in enumerate(defn.values)]
-            return '\n'.join([*vals, ''])
+            f_str = '    .equ {v}, {i}'
+            return _generate_enum(defn, f_str)
 
         case ConstType.FLAGS:
             # The first flag value is always interpreted as 0
@@ -150,7 +172,7 @@ def asm_content(defn: Definition) -> str:
                 *vals,
                 ''
             ])
-    
+
         case _:
             raise ValueError
 
@@ -172,12 +194,9 @@ def py_footer(target: Path) -> str:
 def py_content(defn: Definition) -> str:
     match defn.type:
         case ConstType.ENUM:
-            vals = [f'    {v} = {i}' for i, v in enumerate(defn.values)]
-            return '\n'.join([
-                f'class {defn.key[1:]}(enum.Enum):',
-                *vals,
-                ''
-            ])
+            f_str = '    {v} = {i}'
+            prefix_line = f'class {defn.key[1:]}(enum.Enum):'
+            return _generate_enum(defn, f_str, prefix_line)
 
         case ConstType.FLAGS:
             vals = [f'    {v} = enum.auto()' for v in defn.values[1:]]
@@ -197,7 +216,7 @@ def py_content(defn: Definition) -> str:
                 *vals,
                 ''
             ])
-        
+
         case _:
             raise ValueError
 
