@@ -9,7 +9,7 @@ _DEFINITIONS = 'definitions'
 _TARGETS = 'targets'
 
 
-Definition = namedtuple('Definition', ['key', 'type', 'values', 'composites', 'as_preproc'])
+Definition = namedtuple('Definition', ['key', 'type', 'values', 'composites', 'as_preproc', 'overrides'])
 Target = namedtuple('Target', ['path', 'def_keys'])
 
 
@@ -41,12 +41,13 @@ class Schema():
     __slots__ = (_DEFINITIONS, _TARGETS)
 
     def __init__(self, defs: MutableMapping, targets: MutableMapping):
-        self.definitions = { 
+        self.definitions = {
             def_key: Definition(def_key,
                                 ConstType[def_obj['type'].upper()],
                                 def_obj['values'],
                                 def_obj.get('composites', {}),
-                                def_obj.get('as_preproc', False))
+                                def_obj.get('as_preproc', False),
+                                def_obj.get('overrides', {}))
             for def_key, def_obj in defs.items()
         }
         self.targets = { path_key: Target(path_key, def_keys) for path_key, def_keys in _flatten(targets).items() }
@@ -58,7 +59,7 @@ class Schema():
     @classmethod
     def from_string(cls, json_s: str) -> 'Schema':
         return cls.from_mapping(json_loads(json_s))
-    
+
     @classmethod
     def from_file(cls, path: Path) -> 'Schema':
         with open(path, 'r', encoding='utf-8') as json_f:
