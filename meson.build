@@ -17,7 +17,7 @@ constgen_exe = executable('constgen',
         '-Wall',
         '-Wpedantic',
         '-Werror',
-        '-Iinclude',
+        '-DCONSTGEN_DEBUG',
     ],
     include_directories: public_includes,
     dependencies: [
