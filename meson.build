@@ -1,15 +1,32 @@
-project('constgen',
+project('constgen', 'cpp',
     meson_version: '>=1.2.0',
     version: '0.1.0'
 )
 
-subdir('constgen')
+argparse = dependency('argparse')
+json = dependency('nlohmann_json')
 
-############################################################
-###                    FOR CONSUMERS                     ###
-############################################################
+public_includes = include_directories('include')
+
+subdir('src')
+
+constgen_exe = executable('constgen',
+    sources: constgen_cpp_srcs,
+    cpp_args: [
+        '-std=c++20',
+        '-Wall',
+        '-Wpedantic',
+        '-Werror',
+        '-Iinclude',
+    ],
+    include_directories: public_includes,
+    dependencies: [
+        argparse,
+        json,
+    ],
+)
 
 constgen_dep = declare_dependency()
 
 meson.override_dependency('constgen', constgen_dep)
-meson.override_find_program('constgen_py', constgen_py)
+meson.override_find_program('constgen', constgen_exe)
