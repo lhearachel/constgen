@@ -47,6 +47,8 @@ struct AliasSchema {
 };
 
 struct Schema {
+    fs::path source;
+    std::string name;
     ConstantType type;
     EnumSchema enum_schema;
     BitflagSchema bitflag_schema;
@@ -54,6 +56,7 @@ struct Schema {
 };
 
 Schema from_json(const fs::path &schema_fname);
+void generate(const Schema &schema, const Language lang, std::ostream &outs);
 
 }; // constgen
 

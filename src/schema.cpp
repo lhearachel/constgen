@@ -7,7 +7,6 @@
 
 #include "constgen.h"
 
-namespace cg = constgen;
 using json = nlohmann::json;
 
 namespace constgen {
@@ -126,12 +125,14 @@ void from_json(const json &schema, AliasSchema &alias_schema)
 
 void from_json(const json &data, Schema &schema)
 {
-    auto type_it = TYPE_MAP.find(data.at("type")); // let the exception bubble up
+    data.at("name").get_to(schema.name);
+    auto type_it = TYPE_MAP.find(data.at("type"));
     if (type_it != TYPE_MAP.end()) {
         schema.type = type_it->second;
     }
 
 #ifdef CONSTGEN_DEBUG
+    std::cout << "name: " << schema.name << std::endl;
     std::cout << "type: " << schema.type << std::endl;
 #endif
 
@@ -152,7 +153,7 @@ void from_json(const json &data, Schema &schema)
 
 }; // constgen
 
-cg::Schema cg::from_json(const fs::path &schema_fname)
+constgen::Schema constgen::from_json(const fs::path &schema_fname)
 {
     std::ifstream ifs(schema_fname);
     if (!ifs.good()) {
@@ -160,6 +161,8 @@ cg::Schema cg::from_json(const fs::path &schema_fname)
         return {};
     }
 
-    return json::parse(ifs);
+    Schema schema = json::parse(ifs);
+    schema.source = schema_fname;
+    return schema;
 }
 

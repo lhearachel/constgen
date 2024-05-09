@@ -37,18 +37,19 @@ int main(int argc, char *argv[]) {
     std::string fname_in = program.get("--file");
     fs::path fname(fname_in);
 
-    /* enum cg::Language lang; */
-    /* std::string lang_in = program.get("--lang"); */
-    /* auto lang_it = SUPPORTED_LANGS.find(lang_in); */
-    /* if (lang_it != SUPPORTED_LANGS.end()) { */
-    /*     lang = lang_it->second; */
-    /* } else { */
-    /*     std::cerr << "Unrecognized value for LANG: " << lang_in << std::endl; */
-    /*     std::cerr << program; */
-    /*     std::exit(1); */
-    /* } */
+    enum cg::Language lang;
+    std::string lang_in = program.get("--lang");
+    auto lang_it = SUPPORTED_LANGS.find(lang_in);
+    if (lang_it != SUPPORTED_LANGS.end()) {
+        lang = lang_it->second;
+    } else {
+        std::cerr << "Unrecognized value for LANG: " << lang_in << std::endl;
+        std::cerr << program;
+        std::exit(1);
+    }
 
-    cg::from_json(fname);
+    cg::Schema schema = cg::from_json(fname);
+    cg::generate(schema, lang, std::cout);
 
     return 0;
 }
