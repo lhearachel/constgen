@@ -35,12 +35,6 @@ These constants can be defined instead using the following simple JSON manifest:
 
 ```json
 {
-    "targets": {
-        "constants": [
-            "@Color",
-            "@Pet"
-        ]
-    },
     "definitions": {
         "@Color": {
             "type": "enum",

@@ -6,11 +6,9 @@ from pathlib import Path
 
 
 _DEFINITIONS = 'definitions'
-_TARGETS = 'targets'
 
 
 Definition = namedtuple('Definition', ['key', 'type', 'values', 'composites', 'as_preproc', 'overrides'])
-Target = namedtuple('Target', ['path', 'def_keys'])
 
 
 class ConstType(IntFlag):
@@ -38,9 +36,9 @@ def _flatten(d: MutableMapping, parent='', sep='/'):
 
 
 class Schema():
-    __slots__ = (_DEFINITIONS, _TARGETS)
+    __slots__ = (_DEFINITIONS)
 
-    def __init__(self, defs: MutableMapping, targets: MutableMapping):
+    def __init__(self, defs: MutableMapping):
         self.definitions = {
             def_key: Definition(def_key,
                                 ConstType[def_obj['type'].upper()],
@@ -50,11 +48,10 @@ class Schema():
                                 def_obj.get('overrides', {}))
             for def_key, def_obj in defs.items()
         }
-        self.targets = { path_key: Target(path_key, def_keys) for path_key, def_keys in _flatten(targets).items() }
 
     @classmethod
     def from_mapping(cls, schema_dict: MutableMapping) -> 'Schema':
-        return cls(schema_dict[_DEFINITIONS], schema_dict[_TARGETS])
+        return cls(schema_dict[_DEFINITIONS])
 
     @classmethod
     def from_string(cls, json_s: str) -> 'Schema':

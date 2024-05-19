@@ -1,9 +1,8 @@
 from collections import namedtuple
-from collections.abc import MutableSequence
 from enum import auto, Enum
 from pathlib import Path
 from re import sub as re_sub
-from typing import Optional
+from typing import List, Optional
 
 from schema import Definition, ConstType, CompositionOp
 
@@ -35,19 +34,17 @@ def _file_guard(target: Path) -> str:
     ).upper().replace('/', '__').replace('.', '__')
 
 
-def _compose(components: list[str], op: str, lang: Language) -> str:
-    match CompositionOp[op.upper()]:
-        case CompositionOp.OR:
-            return LANG_COMPOSE_OPS[lang.value][CompositionOp.OR.value].join(components)
-
-        case _:
-            raise ValueError
+def _compose(components: List[str], op: str, lang: Language) -> str:
+    if CompositionOp[op.upper()] == CompositionOp.OR:
+        return LANG_COMPOSE_OPS[lang.value][CompositionOp.OR.value].join(components)
+    else:
+        raise ValueError
 
 
 def _generate_enum(defn: Definition,
                    f_str: str,
                    prefix_line: Optional[str] = None,
-                   suffix_line: Optional[str] = None) -> MutableSequence[str]:
+                   suffix_line: Optional[str] = None) -> str:
     start = 0
     offset = 0
     vals = []
@@ -86,50 +83,46 @@ def c_footer(target: Path) -> str:
 
 
 def c_content(defn: Definition) -> str:
-    match defn.type:
-        case ConstType.ENUM:
-            # C enums support a preprocessor definition style
-            if defn.as_preproc:
-                f_str = '#define {v} {i}'
-                prefix_line = None
-                suffix_line = None
-            else:
-                f_str = '    {v} = {i},'
-                prefix_line = f'enum {defn.key[1:]} {{'
-                suffix_line = '};'
+    if defn.type == ConstType.ENUM:
+        # C enums support a preprocessor definition style
+        if defn.as_preproc:
+            f_str = '#define {v} {i}'
+            prefix_line = None
+            suffix_line = None
+        else:
+            f_str = '    {v} = {i},'
+            prefix_line = f'enum {defn.key[1:]} {{'
+            suffix_line = '};'
 
-            return _generate_enum(defn, f_str, prefix_line, suffix_line)
+        return _generate_enum(defn, f_str, prefix_line, suffix_line)
+    elif defn.type == ConstType.FLAGS:
+        vals = [f'#define {v} (1 << {i})' for i, v in enumerate(defn.values[1:])]
+        composites = [f'#define {k} ({_compose(v["components"], v["op"], Language.C)})' for k, v in defn.composites.items()]
 
-        case ConstType.FLAGS:
-            vals = [f'#define {v} (1 << {i})' for i, v in enumerate(defn.values[1:])]
-            composites = [f'#define {k} ({_compose(v["components"], v["op"], Language.C)})' for k, v in defn.composites.items()]
-
+        return '\n'.join([
+            f'#define {defn.values[0]} 0',
+            *vals,
+            *composites,
+            ''
+        ])
+    elif defn.type == ConstType.ALIASES:
+        # Dump literal definitions
+        # Aliases can be dumped either as preprocessor defines or as enum members
+        if defn.as_preproc:
+            vals = [f'#define {k} {v}' for k, v in defn.values.items()]
             return '\n'.join([
-                f'#define {defn.values[0]} 0',
                 *vals,
-                *composites,
                 ''
             ])
-
-        case ConstType.ALIASES:
-            # Dump literal definitions
-            # Aliases can be dumped either as preprocessor defines or as enum members
-            if defn.as_preproc:
-                vals = [f'#define {k} {v}' for k, v in defn.values.items()]
-                return '\n'.join([
-                    *vals,
-                    ''
-                ])
-            else:
-                vals = [f'    {k} = {v},' for k, v in defn.values.items()]
-                return '\n'.join([
-                    f'enum {defn.key[1:]} {{',
-                    *vals,
-                    '};\n'
-                ])
-
-        case _:
-            raise ValueError
+        else:
+            vals = [f'    {k} = {v},' for k, v in defn.values.items()]
+            return '\n'.join([
+                f'enum {defn.key[1:]} {{',
+                *vals,
+                '};\n'
+            ])
+    else:
+        raise ValueError
 
 
 def asm_header(target: Path, origin_file_name: Path) -> str:
@@ -149,32 +142,28 @@ def asm_footer(target: Path) -> str:
 
 
 def asm_content(defn: Definition) -> str:
-    match defn.type:
-        case ConstType.ENUM:
-            f_str = '    .equ {v}, {i}'
-            return _generate_enum(defn, f_str)
+    if defn.type == ConstType.ENUM:
+        f_str = '    .equ {v}, {i}'
+        return _generate_enum(defn, f_str)
+    elif defn.type == ConstType.FLAGS:
+        # The first flag value is always interpreted as 0
+        vals = [f'    .equ {v}, (1 << {i})' for i, v in enumerate(defn.values[1:])]
+        composites = [f'    .equ {k}, ({_compose(v["components"], v["op"], Language.C)})' for k, v in defn.composites.items()]
 
-        case ConstType.FLAGS:
-            # The first flag value is always interpreted as 0
-            vals = [f'    .equ {v}, (1 << {i})' for i, v in enumerate(defn.values[1:])]
-            composites = [f'    .equ {k}, ({_compose(v["components"], v["op"], Language.C)})' for k, v in defn.composites.items()]
-
-            return '\n'.join([
-                f'    .equ {defn.values[0]}, 0',
-                *vals,
-                *composites,
-                ''
-            ])
-
-        case ConstType.ALIASES:
-            vals = [f'    .equ {k}, {v}' for k, v in defn.values.items()]
-            return '\n'.join([
-                *vals,
-                ''
-            ])
-
-        case _:
-            raise ValueError
+        return '\n'.join([
+            f'    .equ {defn.values[0]}, 0',
+            *vals,
+            *composites,
+            ''
+        ])
+    elif defn.type == ConstType.ALIASES:
+        vals = [f'    .equ {k}, {v}' for k, v in defn.values.items()]
+        return '\n'.join([
+            *vals,
+            ''
+        ])
+    else:
+        raise ValueError
 
 
 def py_header(target: Path, origin_file_name: Path) -> str:
@@ -192,33 +181,29 @@ def py_footer(target: Path) -> str:
 
 
 def py_content(defn: Definition) -> str:
-    match defn.type:
-        case ConstType.ENUM:
-            f_str = '    {v} = {i}'
-            prefix_line = f'class {defn.key[1:]}(enum.Enum):'
-            return _generate_enum(defn, f_str, prefix_line)
-
-        case ConstType.FLAGS:
-            vals = [f'    {v} = enum.auto()' for v in defn.values[1:]]
-            composites = [f'    {k} = {_compose(v["components"], v["op"], Language.PY)}' for k, v in defn.composites.items()]
-            return '\n'.join([
-                f'class {defn.key[1:]}(enum.IntFlag):',
-                f'    {defn.values[0]} = 0',
-                *vals,
-                *composites,
-                ''
-            ])
-
-        case ConstType.ALIASES:
-            vals = [f'    {k} = {v}' for k, v in defn.values.items()]
-            return '\n'.join([
-                f'class {defn.key[1:]}(enum.Enum):',
-                *vals,
-                ''
-            ])
-
-        case _:
-            raise ValueError
+    if defn.type == ConstType.ENUM:
+        f_str = '    {v} = {i}'
+        prefix_line = f'class {defn.key[1:]}(enum.Enum):'
+        return _generate_enum(defn, f_str, prefix_line)
+    elif defn.type == ConstType.FLAGS:
+        vals = [f'    {v} = enum.auto()' for v in defn.values[1:]]
+        composites = [f'    {k} = {_compose(v["components"], v["op"], Language.PY)}' for k, v in defn.composites.items()]
+        return '\n'.join([
+            f'class {defn.key[1:]}(enum.IntFlag):',
+            f'    {defn.values[0]} = 0',
+            *vals,
+            *composites,
+            ''
+        ])
+    elif defn.type == ConstType.ALIASES:
+        vals = [f'    {k} = {v}' for k, v in defn.values.items()]
+        return '\n'.join([
+            f'class {defn.key[1:]}(enum.Enum):',
+            *vals,
+            ''
+        ])
+    else:
+        raise ValueError
 
 
 FuncSet = namedtuple('FuncSet', ['header', 'footer', 'content'])
