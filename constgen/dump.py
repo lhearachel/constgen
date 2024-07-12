@@ -1,10 +1,11 @@
 from pathlib import Path
+from typing import List
 
 from lang import Language, LANG_EXTS, LANG_FUNCS
 from schema import Schema
 
 
-def dump(origin_file: Path, langs: list[Language], root: Path=Path('.')):
+def dump(origin_file: Path, langs: List[Language], root: Path=Path('.')):
     '''Dump a schema definition to a series of files for each input language.
 
     Generated files will be prefixed underneath a specified root directory, if any.
