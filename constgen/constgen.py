@@ -22,7 +22,7 @@ def constgen():
                        help='language target for generated files',
                        choices=[l.name.lower() for l in Language],
                        nargs='+')
-    
+
     args = ARG_P.parse_args()
 
     target_root = Path(args.root)
