@@ -128,8 +128,8 @@ def c_content(defn: Definition) -> str:
 def asm_header(target: Path, origin_file_name: Path) -> str:
     incl_guard = _file_guard(target) + '_INC'
     return '\n'.join([
-        f'; {GENERATED_BANNER}',
-        f'; {ORIGIN_FILE_BANNER.format(origin_file_name=origin_file_name)}',
+        f'// {GENERATED_BANNER}',
+        f'// {ORIGIN_FILE_BANNER.format(origin_file_name=origin_file_name)}',
         '',
         f'    .ifndef {incl_guard}',
         f'    .set {incl_guard}, 1',
